@@ -1,0 +1,15 @@
+name: tfc-asd
+channels:
+  - pytorch
+  - defaults
+
+dependencies:
+  - python=3.9
+  - pytorch
+  - numpy
+  - scikit-learn
+  - matplotlib
+  - scipy
+  - pip
+  - pip:
+      - tqdm
