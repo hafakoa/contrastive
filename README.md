@@ -36,11 +36,14 @@ The figure above provides an overview of the proposed pipeline. The architecture
 
 ## 🧠 Key Features
 
-
+\- Automated extraction of vocal biomarkers :
+    * Atypical Prosody, 
+    * Vocal Instability (increased frequency instability "jitter" and amplitude instability "shimmer")
+    * Abnormal Resonance and Timbre: Deviations in formant frequencies and spectral energy distribution
 
 \- Multimodal contrastive learning (time + frequency)
 
-\- Robust to heterogeneous datasets (Dutch + ReCANVo)
+\- Robust to heterogeneous datasets (Dutch + ReCANVo + UClass)
 
 \- Works on verbal and non-verbal vocalizations
 
