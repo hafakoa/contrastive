@@ -36,16 +36,24 @@ The figure above provides an overview of the proposed pipeline. The architecture
 
 ## 🧠 Key Features
 
-\- Automated extraction of vocal biomarkers :
-    * Atypical Prosody, 
-    * Vocal Instability (increased frequency instability "jitter" and amplitude instability "shimmer")
-    * Abnormal Resonance and Timbre: Deviations in formant frequencies and spectral energy distribution
+\- Automated extraction of vocal biomarkers:
+  - Atypical Prosody
+  - Vocal Instability (increased frequency instability "jitter" and amplitude instability "shimmer")
+  - Abnormal Resonance and Timbre: Deviations in formant frequencies and spectral energy distribution
 
-\- Multimodal contrastive learning (time + frequency)
+\- Multimodal contrastive learning (time + frequency) by using two encoder-transformers and supervised contrastive loss (SupCon)
 
-\- Robust to heterogeneous datasets (Dutch + ReCANVo + UClass)
+\- Robust to heterogeneous datasets (Dutch + ReCANVo + UClass) by using:
+  - Intra-Subject Bias Mitigation: Implemented a custom batch sampler at the DataLoader level to balance participant contributions, preventing individuals with highly frequent segments from dominating the training batch.
+  - Inter-Cohort Bias Reduction (Domain Adaptation): Integrated a Gradient Reversal Layer (GRL) to encourage the model to extract domain-invariant representations across the TalkBank, ReCANVo, and UCLASS datasets. This shifts the model's focus away from dataset-specific artifacts and onto core vocal biomarkers associated with autism.
+  
 
 \- Works on verbal and non-verbal vocalizations
+
+\- Cross-Validation, we use **StratifiedGroupKFold** to ensure robust model evaluation. This approach:    
+- Prevents data leakage by keeping all samples from the same participant within a single fold.  
+- Preserves the ASD/Non-ASD class distribution across folds.  
+- Provides reliable and unbiased performance estimates through strict subject-level separation.  
 
 
 
@@ -57,23 +65,19 @@ The figure above provides an overview of the proposed pipeline. The architecture
 
 src/
 
-models/ # TFC model and classifier
+models/ "TF-C model and MLP classifier"
 
-datasets/ # Data loading pipeline
+datasets/ "Data loading pipeline"
 
-augmentation/ # Data augmentation
+augmentation/ "Data augmentation"
 
-training/ # Training scripts
+training/ "Training in cross-validation and loss function"
 
-evaluation/ # Testing and metrics
+evaluation/ "Testing and metrics"
 
+data/ "Dataset instructions"
 
-
-data/ # Dataset instructions
-
-scripts/ # Run scripts
-
-configs/ # Config files
+configs/ "Hyperparameters used: weight decay, learning rate, dropout, d_model, dim_feedforward, batch_size, chunk duration..."
 
 
 
@@ -123,9 +127,7 @@ python src/training/train.py --config configs/config.yaml
 
 python src/evaluation/test.py
 
-## 🔁 Reproducibility
 
-bash scripts/reproduce.sh
 
 ## 📈 Results
 
