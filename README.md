@@ -1,26 +1,13 @@
-<<<<<<< HEAD
-# contrastive
-Contrastive Representation Learning for Voice-Based Autistic Trait Identification
-=======
-\# Contrastive Learning for Voice-Based ASD Detection
+# Contrastive Representation Learning for Voice-Based Autistic Trait Identification
+#### Authors: Hajarimino Rakotomanana (rhajarimino@gmail.com), Ghazal Rouhafzay (ghazal.rouhafzay@umoncton.ca), <br/>
 
+#### Paper: [Preprint](https://doi.org/10.20944/preprints202604.1071.v1)
 
+## 📌 Overview 
 
-Official implementation of:
-
-
+Official implementation of :
 
 \*\*"Contrastive Representation Learning for Voice-Based Autistic Trait Identification"\*\*
-
-
-
-\---
-
-
-
-\## 📌 Overview
-
-
 
 This repository provides a deep learning framework for detecting autistic traits from vocal signals using contrastive learning.
 
@@ -28,15 +15,26 @@ This repository provides a deep learning framework for detecting autistic traits
 
 The approach leverages:
 
-\- Time-domain and frequency-domain representations
+\- Time-domain and frequency-domain representations of [Xiang et al.](https://zitniklab.hms.harvard.edu/projects/TF-C/)
 
 \- Data augmentation for robust feature learning
 
 \- Transformer-based encoders
 
+\- Supervised Contrastive Learning of [Prannay et al.](https://arxiv.org/abs/2004.11362)
 
 
-\---
+Specifically, we leverage the complementary nature of temporal and spectral voice representations to enforce cross-view consistency while explicitly incorporating diagnostic labels during training.
+
+The proposed objective is designed to identify traits associated with Autism Spectrum Disorder (ASD) by simultaneously minimizing intra-class variability and maximizing inter-class separability in the learned embedding space. By integrating label-informed contrastive constraints, the model promotes more discriminative representations and improves robustness to inter-speaker variability, thereby enhancing generalization to previously unseen individuals.
+
+
+
+\## 📌 Overview
+
+
+
+
 
 
 
@@ -160,10 +158,16 @@ bash scripts/reproduce.sh
 
 This tool is for research purposes only and is not intended for clinical diagnosis.
 
-🙏 Acknowledgements
+## 🙏 License & Acknowledgements
 
 Inspired by contrastive learning frameworks such as SupContrast, TF-C.
 
+This project incorporates code from [TF-C Pretraining](https://github.com/mims-harvard/TFC-pretraining) by the Zitnik Lab at Harvard, which is licensed under the MIT License.
+
+### Original Copyright Notice:
+Copyright (c) 2022 Machine Learning for Medicine and Science @ Harvard
+
+A copy of the full MIT License text is included in the [LICENSE](./LICENSE) file of this repository.
 
 
 \---
