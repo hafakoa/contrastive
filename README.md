@@ -7,10 +7,9 @@
 
 Official implementation of :
 
-\*\*"Contrastive Representation Learning for Voice-Based Autistic Trait Identification"\*\*
+**"Contrastive Representation Learning for Voice-Based Autistic Trait Identification"**
 
 This repository provides a deep learning framework for detecting autistic traits from vocal signals using contrastive learning.
-
 
 
 The approach leverages:
@@ -56,11 +55,6 @@ The figure above provides an overview of the proposed pipeline. The architecture
 - Provides reliable and unbiased performance estimates through strict subject-level separation.  
 
 
-
-\---
-
-
-
 ## 🏗️ Project Structure
 
 src/
@@ -79,9 +73,6 @@ data/ "Dataset instructions"
 
 configs/ "Hyperparameters used: weight decay, learning rate, dropout, d_model, dim_feedforward, batch_size, chunk duration..."
 
-
-
-\---
 
 
 
@@ -187,10 +178,6 @@ This project incorporates code from [TF-C Pretraining](https://github.com/mims-h
 Copyright (c) 2022 Machine Learning for Medicine and Science @ Harvard
 
 A copy of the full MIT License text is included in the [LICENSE](./LICENSE) file of this repository.
-
-
-\---
-
 
 
 ## 📦 `requirements.txt`
