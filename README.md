@@ -173,7 +173,7 @@ A copy of the full MIT License text is included in the [LICENSE](./LICENSE) file
 
 ## 📦 `requirements.txt`
 
-A copy of the full requirements.txt is included in the [requirements.txt](./requirements.txt) file of this repository.
+The full requirements.txt are included in the [requirements.txt](./requirements.txt) file of this repository.
 
 ```txt
 
@@ -192,7 +192,3 @@ matplotlib
 scipy
 
 tqdm
-
-
-
->>>>>>> fb7ed0e (Initial push)
