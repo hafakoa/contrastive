@@ -34,15 +34,7 @@ The proposed objective is designed to identify traits associated with Autism Spe
 
 The figure above provides an overview of the proposed pipeline. The architecture consists of three main stages: (i) time–frequency feature extraction and dual-branch encoding, (ii) supervised contrastive representation learning, and (iii) downstream fine-tuning with a lightweight classification head. The figure illustrates how temporal and spectral representations are jointly optimized under contrastive supervision before being transferred to the diagnostic classification task.
 
-\## 📌 Overview
-
-
-
-
-
-
-
-\## 🧠 Key Features
+## 🧠 Key Features
 
 
 
@@ -58,7 +50,7 @@ The figure above provides an overview of the proposed pipeline. The architecture
 
 
 
-\## 🏗️ Project Structure
+## 🏗️ Project Structure
 
 src/
 
@@ -86,11 +78,11 @@ configs/ # Config files
 
 
 
-\## ⚙️ Installation
+## ⚙️ Installation
 
 
 
-\### Using pip
+### Using pip
 
 
 
@@ -105,7 +97,7 @@ conda env create -f environment.yml
 conda activate tfc-asd
 ```
 
-📊 Dataset
+## 📊 Dataset
 
 
 
@@ -123,19 +115,19 @@ TalkBank (Dutch)
 
 data/README.md
 
-🏋️ Training
+## 🏋️ Training
 
 python src/training/train.py --config configs/config.yaml
 
-🧪 Evaluation
+## 🧪 Evaluation
 
 python src/evaluation/test.py
 
-🔁 Reproducibility
+## 🔁 Reproducibility
 
 bash scripts/reproduce.sh
 
-📈 Results
+## 📈 Results
 
 | Dataset                 | Accuracy | F1-score |
 
@@ -145,7 +137,7 @@ bash scripts/reproduce.sh
 
 \* Note: Based on small sample size (n=18), see paper for confidence intervals.
 
-📎 Citation
+## 📎 Citation
 
 @article{yourpaper2025,
 
@@ -159,7 +151,7 @@ bash scripts/reproduce.sh
 
 }
 
-⚠️ Disclaimer
+## ⚠️ Disclaimer
 
 This tool is for research purposes only and is not intended for clinical diagnosis.
 
@@ -179,9 +171,9 @@ A copy of the full MIT License text is included in the [LICENSE](./LICENSE) file
 
 
 
-\# 📦 `requirements.txt`
+## 📦 `requirements.txt`
 
-
+A copy of the full requirements.txt is included in the [requirements.txt](./requirements) file of this repository.
 
 ```txt
 
