@@ -99,21 +99,18 @@ conda activate tfc-asd
 
 ## 📊 Dataset
 
-
-
 Datasets are not included due to privacy restrictions.
-
-
-
 Used datasets:
-
-
-
-ReCANVo (real-world vocalizations)
-
+ReCANVo : A Dataset of Real-World Communicative and Affective Nonverbal Vocalizations
 TalkBank (Dutch)
+UClass
 
-data/README.md
+The cohort breakdown is as follows:
+TalkBank: 121 participants, including 46 with ASD and 75 without ASD (38 typically developing participants – TD – and 37 participants with ADHD). The recordings consist primarily of articulated speech.
+ReCANVo: 8 participants with ASD who primarily produce non-verbal vocalizations.
+UClass: 24 participants with non-ASD (12 women and 12 men) who stutter, as well as 8 participants with ASD. The recordings consist of articulated speech.
+
+Data instructions are found at data/README.md
 
 ## 🏋️ Training
 
