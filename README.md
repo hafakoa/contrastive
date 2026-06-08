@@ -173,13 +173,17 @@ A copy of the full MIT License text is included in the [LICENSE](./LICENSE) file
 
 ## 📦 `requirements.txt`
 
-A copy of the full requirements.txt is included in the [requirements.txt](./requirements) file of this repository.
+A copy of the full requirements.txt is included in the [requirements.txt](./requirements.txt) file of this repository.
 
 ```txt
 
 torch
 
-numpy
+librosa
+
+huggingface_hub
+
+transformers
 
 scikit-learn
 
