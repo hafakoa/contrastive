@@ -140,7 +140,23 @@ Data instructions are found at data/README.md
 
 
 ## 📈 Results
+The entire corpus comprises **153 participants**, distributed as follows:  
+54 participants with autism spectrum disorder (ASD);  
+99 non-autistic participants (Non-ASD).  
+- Inference with unseen data
+<p align="center">
+    <img src="images/inference_asd.png" width="750" align="center">
+</p>
 
+- Performance distribution in 5-fold prediction for three different datasets
+<p align="center">
+    <img src="images/BoxPlot_asd.png" width="750" align="center">
+</p>
+
+- Global confusion matrix across 5-Fold CV
+<p align="center">
+    <img src="images/global_confusion_matrix_asd.png" width="450" align="center">
+</p>
 
 
 ## 📎 Citation
