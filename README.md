@@ -28,7 +28,11 @@ Specifically, we leverage the complementary nature of temporal and spectral voic
 
 The proposed objective is designed to identify traits associated with Autism Spectrum Disorder (ASD) by simultaneously minimizing intra-class variability and maximizing inter-class separability in the learned embedding space. By integrating label-informed contrastive constraints, the model promotes more discriminative representations and improves robustness to inter-speaker variability, thereby enhancing generalization to previously unseen individuals.
 
+<p align="center">
+    <img src="images/ASD_pipeline_v3.png" width="750" align="center">
+</p>
 
+The figure above provides an overview of the proposed pipeline. The architecture consists of three main stages: (i) time–frequency feature extraction and dual-branch encoding, (ii) supervised contrastive representation learning, and (iii) downstream fine-tuning with a lightweight classification head. The figure illustrates how temporal and spectral representations are jointly optimized under contrastive supervision before being transferred to the diagnostic classification task.
 
 \## 📌 Overview
 
@@ -99,6 +103,7 @@ Using conda
 conda env create -f environment.yml
 
 conda activate tfc-asd
+```
 
 📊 Dataset
 
