@@ -90,7 +90,7 @@ configs/ "Hyperparameters used: weight decay, learning rate, dropout, d_model, d
 ### 1. Clone the repository  
 ```bash
 cd <git local repository>  
-git clone <repository_url>  
+git clone https://github.com/hafakoa/contrastive.git  
 cd <repository_folder>
 ```
 ### 2. Create a Python virtual environment  
@@ -136,27 +136,12 @@ TalkBank: 121 participants, including 46 with ASD and 75 without ASD (38 typical
 ReCANVo: 8 participants with ASD who primarily produce non-verbal vocalizations.
 UClass: 24 participants with non-ASD (12 women and 12 men) who stutter, as well as 8 participants with ASD. The recordings consist of articulated speech.
 
-Data instructions are found at data/README.md
-
-## 🏋️ Training
-
-python src/training/train.py --config configs/config.yaml
-
-## 🧪 Evaluation
-
-python src/evaluation/test.py
-
+Data instructions are found at data/README.md  
 
 
 ## 📈 Results
 
-| Dataset                 | Accuracy | F1-score |
 
-| ----------------------- | -------- | -------- |
-
-| Mixed (Dutch + ReCANVo) | 100%\*    | 100%     |
-
-\* Note: Based on small sample size (n=18), see paper for confidence intervals.
 
 ## 📎 Citation
 
