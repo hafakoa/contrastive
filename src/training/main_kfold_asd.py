@@ -7,7 +7,37 @@ Original file is located at
     https://colab.research.google.com/drive/1P45AhypDhCe4zM_6OCU32kmYMP66zF67
 """
 
-def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, batch_size=batch_size):
+experiment_log_dir = "./data/Save_dataset/"
+all_fold_y_true = []
+all_fold_y_pred = []
+
+import os
+from sklearn.model_selection import StratifiedGroupKFold
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import torch
+import random
+from sklearn.metrics import confusion_matrix
+import src.utils.hyperparameters_asd as cfg
+import src.datasets.dataloader_asd as dld
+import src.models.model_asd as mdl
+from src.training.trainer_asd import Trainer
+from src.datasets.dataloader_asd import build_dataset
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed) # Pour le multi-GPU
+    # Assure un déterminisme total sur les algorithmes de convolution
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42)
+
+def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch_size):
 
     print(f"\nTotal files .wav: {len(file_paths)}")
     print(f"Total unique individuals: {len(set(groups_kfold))}")
@@ -18,9 +48,11 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
     )
     fold_results_testing = []
     fold_results_finetune = []
+    all_fold_y_true = []
+    all_fold_y_pred = []
     for fold, (train_idx, val_idx) in enumerate(
             sgkf.split(file_paths, labels, groups_kfold)):
-
+        filename_map = {}
         print(f"\n================================================")
         print(f"=========== START FOLD {fold+1} ===============")
         print(f"================================================")
@@ -51,13 +83,13 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
         print(f"Class 1 (ASD/ReCANVo): {np.sum(val_labels == 1)}")
 
         print("\nProcessing training set...\n")
-        all_chunks, all_labels, all_filenames, all_groups, all_domains = process_folder(train_files, train_labels, train_groups, train_domains)
+        all_chunks, all_labels, all_filenames, all_groups, all_domains, filename_map = dld.process_folder(train_files, train_labels, train_groups, train_domains)
         print("\nBalancing training set...\n")
         all_chunks_balanced, \
         all_labels_balanced, \
         all_filenames_balanced, \
         all_groups_balanced, \
-        all_domains_balanced = balance_dataset(
+        all_domains_balanced = dld.balance_dataset(
             all_chunks,
             all_labels,
             all_filenames,
@@ -72,29 +104,17 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
             'groups': all_groups_balanced,
             'domains': all_domains_balanced
         }
-        """
-        os.makedirs(os.path.join(sourcedata_path, 'pretrain'),
-                    exist_ok=True)
-
-        torch.save(
-            train_balanced,
-            os.path.join(
-                sourcedata_path,
-                'pretrain',
-                f'mixed_train_fold_{fold+1}.pt'
-            )
-        )"""
 
         print("\nProcessing validation/test set...\n")
 
-        all_chunks_t, all_labels_t, all_filenames_t, all_groups_t, all_domains_t = process_folder(val_files, val_labels, val_groups, val_domains)
+        all_chunks_t, all_labels_t, all_filenames_t, all_groups_t, all_domains_t, filename_map = dld.process_folder(val_files, val_labels, val_groups, val_domains)
         print("\nBalancing validation/test set...")
 
         all_chunks_t_balanced, \
         all_labels_t_balanced, \
         all_filenames_t_balanced, \
         all_groups_t_balanced, \
-        all_domains_t_balanced = balance_dataset(
+        all_domains_t_balanced = dld.balance_dataset(
             all_chunks_t,
             all_labels_t,
             all_filenames_t,
@@ -111,76 +131,37 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
         }
         # Without balancing in testing
         #test_no_balanced = {'samples': all_chunks_t, 'labels': all_labels_t, 'filenames': all_filenames_t, 'groups': all_groups_t}
-        """
-        os.makedirs(os.path.join(targetdata_path, 'pretrain'),
-                    exist_ok=True)
-        torch.save(
-            test_balanced,
-            os.path.join(
-                targetdata_path,
-                'pretrain',
-                f'mixed_test_fold_{fold+1}.pt'
-            )
-        )"""
-
+        
         print(f"Label distribution equilibree Train: 0={torch.sum(all_labels_balanced == 0).item()}, 1={torch.sum(all_labels_balanced == 1).item()}")
         print(f"Label distribution equilibree Test: 0={torch.sum(all_labels_t_balanced == 0).item()}, 1={torch.sum(all_labels_t_balanced == 1).item()}\n")
 
         # Load dataloaders
         #train_dl, test_dl = data_generator(train_balanced, test_no_balanced)
-        train_dl, test_dl = data_generator(train_balanced, test_balanced)
-        """
-        batch = next(iter(train_dl))
-        x_dataT, y_dataT, aug1_tdT, \
-        x_data_fT, aug1_fdT, f_dataT = batch
-
-        print("\nBatch shapes:")
-        print("[Batch] Time-domain:", x_dataT.shape)
-        print("[Batch] Labels:", y_dataT.shape)
-        print("[Batch] Aug TD:", aug1_tdT.shape)
-        print("[Batch] Frequency:", x_data_fT.shape)
-        print("[Batch] Aug FD:", aug1_fdT.shape)
-        print("[Batch] Filenames:", f_dataT.shape)
-
-        # --- reconstruire les noms de fichiers dans un batch---
-
-        #train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path)
-        #batch = next(iter(test_dl))  # Correct way to access DataLoader content
-        #x_data, y_data, aug1_td, x_data_f, aug1_fd, f_data = batch
-        print("Filenames in the Batch for train dataloader:\n")
-        filename_np = x_dataT.detach().cpu().numpy()
-        filenames_np = []
-        N = x_dataT.shape[0]
-        for i in range(N):
-          key = tuple(filename_np[i].tolist())
-          fname_np = filename_map.get(key, "")
-          filenames_np.append(fname_np)
-          print(i, repr(fname_np), "label:", y_dataT[i])
-        #filenames = np.array(filenames)"""
+        train_dl, test_dl = dld.data_generator(train_balanced, test_balanced)
 
         device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
-        TFC_model = TFC().to(device)
-        classifier = target_classifier().to(device)
-        domain_classifier = DomainClassifier().to(device)
+        TFC_model = mdl.TFC().to(device)
+        classifier = mdl.target_classifier().to(device)
+        domain_classifier = mdl.DomainClassifier().to(device)
         #features_dim = 2*128  # Remplacez par la vraie dimension des embeddings TFC
         #domain_classifier = DomainClassifier(input_dim=features_dim, num_domains=3).to(device)
 
         domain_optimizer = torch.optim.Adam(
             domain_classifier.parameters(),
             #lr=1e-4
-            lr=lr_classifier
+            lr=cfg.lr_classifier
         )
         model_optimizer = torch.optim.Adam(
             TFC_model.parameters(),
-            lr=lr,
+            lr=cfg.lr,
             betas=(0.9, 0.99),
             weight_decay=1e-4       #1e-4 to test 5e-4  1e-3
         )
         classifier_optimizer = torch.optim.Adam(
             classifier.parameters(),
-            lr=lr_classifier,
+            lr=cfg.lr_classifier,
             betas=(0.9, 0.99),
             weight_decay=1e-4
         )
@@ -197,7 +178,8 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
             test_dl,
             device,
             experiment_log_dir,
-            training_mode
+            training_mode,
+            filename_map
         )
 
         training_mode = "fine_tune_validation_test"
@@ -219,16 +201,21 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
             test_dl,
             device,
             experiment_log_dir,
-            training_mode
+            training_mode,
+            filename_map
         )
 
         fold_results_testing.append(metrics_testing)
         fold_results_finetune.append(metrics_finetune)
+        """"
+        if 'y_true' in metrics_testing and 'y_pred' in metrics_testing:
+            all_fold_y_true.extend(metrics_testing['y_true'])
+            all_fold_y_pred.extend(metrics_testing['y_pred'])"""
 
         training_mode = "prediction"
         classifier.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'classifier_prediction.pt'), weights_only=True))
         TFC_model.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'ckp_last_prediction.pt'), weights_only=True, map_location=device))
-        Trainer(
+        y_true_fold, y_pred_fold = Trainer(
             TFC_model,
             model_optimizer,
             classifier,
@@ -239,12 +226,14 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
             test_dl,
             device,
             experiment_log_dir,
-            training_mode
+            training_mode,
+            filename_map
         )
+        all_fold_y_true.extend(y_true_fold)
+        all_fold_y_pred.extend(y_pred_fold)
 
         print(f"\n=========== END FOLD {fold+1} ===========")
-
-
+        
     accs_testing = [f['accuracy'] for f in fold_results_testing]
     f1s_testing = [f['f1'] for f in fold_results_testing]
     precs_testing = [f['precision'] for f in fold_results_testing]
@@ -318,47 +307,48 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, data_dir=data_dir, b
     return fold_results_testing, fold_results_finetune
 
 
+def main():
+    data_dir = "./data"
+    file_paths, labels, groups, domains, original_labels = build_dataset(data_dir)
 
-file_paths, labels, groups, domains, original_labels = build_dataset(data_dir)
+    asd_individuals = set()
+    recanvo_individuals = set()
+    td_individuals = set()
+    adhd_individuals = set()
+    uclass_f_individuals = set()
+    uclass_m_individuals = set()
 
-asd_individuals = set()
-recanvo_individuals = set()
-td_individuals = set()
-adhd_individuals = set()
-uclass_f_individuals = set()
-uclass_m_individuals = set()
+    for grp, lbl in zip(groups, original_labels):
+        lbl = lbl.lower()
+        if lbl == "asd":
+            asd_individuals.add(grp)
+        elif lbl == "p":
+            recanvo_individuals.add(grp)
+        elif lbl == "td":
+            td_individuals.add(grp)
+        elif lbl == "adhd":
+            adhd_individuals.add(grp)
+        elif lbl == "m":
+            uclass_m_individuals.add(grp)
+        elif lbl == "f":
+            uclass_f_individuals.add(grp)
 
-for grp, lbl in zip(groups, original_labels):
-    lbl = lbl.lower()
-    if lbl == "asd":
-        asd_individuals.add(grp)
-    elif lbl == "p":
-        recanvo_individuals.add(grp)
-    elif lbl == "td":
-        td_individuals.add(grp)
-    elif lbl == "adhd":
-        adhd_individuals.add(grp)
-    elif lbl == "m":
-        uclass_m_individuals.add(grp)
-    elif lbl == "f":
-        uclass_f_individuals.add(grp)
+    print("\nUnique individuals per class:")
+    print("ASD DUTCH:", len(asd_individuals))
+    print("ASD RECANVO:", len(recanvo_individuals))
+    print("TD DUTCH:", len(td_individuals))
+    print("ADHD DUTCH:", len(adhd_individuals))
+    print("UCLASS MEN:", len(uclass_m_individuals))
+    print("UCLASS WOMEN:", len(uclass_f_individuals))
 
-print("\nUnique individuals per class:")
-print("ASD DUTCH:", len(asd_individuals))
-print("ASD RECANVO:", len(recanvo_individuals))
-print("TD DUTCH:", len(td_individuals))
-print("ADHD DUTCH:", len(adhd_individuals))
-print("UCLASS MEN:", len(uclass_m_individuals))
-print("UCLASS WOMEN:", len(uclass_f_individuals))
+    Nb_NonASD = len(td_individuals) + len(adhd_individuals) + len(uclass_m_individuals) + len(uclass_f_individuals)
+    Nb_ASD = len(asd_individuals) + len(recanvo_individuals)
+    print(f"Total individuals: {len(set(groups))} with ASD: {Nb_ASD} , NonASD: {Nb_NonASD}")
 
-Nb_NonASD = len(td_individuals) + len(adhd_individuals) + len(uclass_m_individuals) + len(uclass_f_individuals)
-Nb_ASD = len(asd_individuals) + len(recanvo_individuals)
-print(f"Total individuals: {len(set(groups))} with ASD: {Nb_ASD} , NonASD: {Nb_NonASD}")
-
-print(f"Total samples .wav: {len(file_paths)}")
-print("\nBinary sample distribution:")
-print("ASD/ASD_RECANVO:", sum(labels))
-print("TD/ADHD/UCLASS:", len(labels) - sum(labels))
-all_fold_y_true = []
-all_fold_y_pred = []
-run_kfold(file_paths, labels, groups, domains, k=5)
+    print(f"Total samples .wav: {len(file_paths)}")
+    print("\nBinary sample distribution:")
+    print("ASD/ASD_RECANVO:", sum(labels))
+    print("TD/ADHD/UCLASS:", len(labels) - sum(labels))
+    run_kfold(file_paths, labels, groups, domains, k=2)   #k=5
+if __name__ == '__main__':
+    main()

@@ -11,6 +11,9 @@ Original file is located at
 # During inference:
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
+from torch import nn
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
 
 from collections import defaultdict
@@ -18,6 +21,8 @@ from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_sco
 
 from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import precision_score, recall_score, f1_score
+import torch.nn.functional as F
+from src.training.loss_asd import SupConLoss
 import warnings
 
 # Option 1: Suppress warning
@@ -27,6 +32,64 @@ def get_individual_id(filename):
     """Extract individual ID from filename (first 5 chars by default)"""
     #return filename[:5]
     return filename.split('_')[0]
+
+def model_validate(model, valid_dl, device, classifier):
+
+    model.eval()
+    classifier.eval()
+
+    criterion = nn.CrossEntropyLoss()
+
+    total_loss = []
+    total_acc = []
+
+    with torch.no_grad():
+
+        for data, labels, _, data_f, _, _, _ in valid_dl:
+
+            data = data.float().to(device)
+            labels = labels.long().to(device)
+            data_f = data_f.float().to(device)
+
+            # Forward pass
+            h_t, z_t, h_f, z_f = model(data, data_f)
+
+            z_t = F.normalize(z_t, dim=1)
+            z_f = F.normalize(z_f, dim=1)
+
+            # SupCon embeddings
+            features_supcon = torch.cat(
+                [z_t.unsqueeze(1), z_f.unsqueeze(1)],
+                dim=1
+            )
+
+            criterion_supcon = SupConLoss()
+            l_supcon = criterion_supcon(features_supcon, labels)
+
+            # Classification
+            fea_concat = torch.cat((z_t, z_f), dim=1)
+
+            predictions = classifier(fea_concat)
+
+            loss_cls = criterion(predictions, labels)
+
+            alpha = 1.0
+            loss = alpha * l_supcon + loss_cls
+
+            acc = labels.eq(
+                predictions.argmax(dim=1)
+            ).float().mean()
+
+            total_loss.append(loss.item())
+            total_acc.append(acc.item())
+
+    avg_loss = np.mean(total_loss)
+    avg_acc = np.mean(total_acc)
+
+    print(f' Validation: loss={avg_loss:.4f} | Acc={avg_acc*100:.2f}')
+
+    return avg_loss, avg_acc
+
 
 def model_test_individual_level(model, testdl, device, classifier, filename_map):
     model.eval()
@@ -149,7 +212,7 @@ def model_test_individual_level(model, testdl, device, classifier, filename_map)
 
     #print("\nIndividual PERFORMANCE Metrics:")
     print(f"Individuals evaluated: {len(individual_acc)} ({dist_str})")
-    print('MLP Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | AUPRC=%.4f'
+    print('MLP Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | AUPRC=%.4f')
 #           % (accuracy*100, precision * 100, recall * 100, f1 * 100, auroc*100, auprc*100))
 
     metrics = {

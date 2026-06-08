@@ -7,20 +7,28 @@ Original file is located at
     https://colab.research.google.com/drive/1WyJBABK3MVUUZOq9e4OUkfy1C85pblT3
 """
 
-import sys
+import os
 import umap
 import csv
+import numpy as np
+import seaborn as sns
+import torch
+import src.utils.hyperparameters_asd as cfg
 import matplotlib.pyplot as plt
 #sys.path.append("..")
-from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, \
-    average_precision_score, accuracy_score, precision_score,f1_score,recall_score
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from collections import defaultdict
+from src.training.train_asd import model_pretrain, model_finetune
+from src.evaluation.test_asd import model_test_individual_level, model_validate
+from src.utils.utils_asd import MetricTracker, analyze_accuracy_by_type, print_metrics
+#from src.datasets.dataloader_asd import filename_map
+
 #from model import *
 #tokenizer = AutoTokenizer.from_pretrained("/content/drive/MyDrive/TFC/Save_dataset/tokenizer")
 
 def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_classifier, domain_optimizer, train_dl, test_dl, device,
-            experiment_log_dir, training_mode):
+            experiment_log_dir, training_mode, filename_map):
     #criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optimizer, 'min')
     best_metrics_testing = None
@@ -31,7 +39,7 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
     if training_mode == 'pre_train':
         print('\nPretraining on source dataset in progress\n')
         total_train_loss = []
-        for epoch in range(1, num_epoch_pretrain + 1):
+        for epoch in range(1, cfg.num_epoch_pretrain + 1):
             train_loss = model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, train_dl, device)
             print(f'Pre-training Epoch : {epoch}', f'Train Loss : {train_loss:.4f}')
             # save best pretrain model""
@@ -67,8 +75,6 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         # ======================================================
         y_true = metrics_indiv_level['y_true']
         y_pred = metrics_indiv_level['y_pred']
-        all_fold_y_true.extend(metrics_indiv_level['y_true'])
-        all_fold_y_pred.extend(metrics_indiv_level['y_pred'])
         # Confusion Matrix (Individual Level)
         cm = confusion_matrix(y_true, y_pred)
         # Normalize confusion matrix (optional but recommended)
@@ -136,9 +142,10 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
                     'agreement': res['agreement'],
                     'status': status
                 })
-
+        
         print(f"✅ Fichier individus sauvegardé : {output_csv_path_indiv}")
         analyze_accuracy_by_type(output_csv_path_indiv, id_column='ind_id')
+        return y_true, y_pred
 
     ####################################################
     """FINE-TUNING, VALIDATION AND TEST"""
@@ -162,7 +169,7 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         total_validation_loss = []
         global emb_finetune, label_finetune, emb_test, label_test
 
-        for epoch in range(1, num_epoch_finetune + 1):
+        for epoch in range(1, cfg.num_epoch_finetune + 1):
             print(f'\nEpoch : {epoch}')
             finetune_loss, emb_finetune, label_finetune, Acc, Precision, F1, Recall, filenm = model_finetune(model, model_optimizer, train_dl,
                                   device, training_mode, classifier=classifier, classifier_optimizer=classifier_optimizer, domain_classifier=domain_classifier, domain_optimizer=domain_optimizer)
@@ -227,7 +234,7 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         loss_save_dir = os.path.join(experiment_log_dir, "loss_curves")
 
         print("\n############# BEST PERFORMANCE FOR TF-C ASD MODEL USING SUPERVISED CONTRASTIVE LOSS ####################\n")
-        print(f"\n***Number total of individus: {Nb_ASD + Nb_NonASD} (ASD: {Nb_ASD} , NonASD: {Nb_NonASD})")
+        #print(f"\n***Number total of individus: {Nb_ASD + Nb_NonASD} (ASD: {Nb_ASD} , NonASD: {Nb_NonASD})")
         print('===BEST FINETUNING PERFORMANCE===')
         print("***Acc = %.4f| Precision = %.4f| Recall = %.4f | F1 = %.4f"% (max(total_acc), max(total_precision), max(total_recall), max(total_f1)))
         best_metrics_finetune = {
@@ -246,28 +253,28 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         print("\n####################### Experimentation is Done! #########################")
 
 
-    if best_metrics_testing is None:
-        # Sécurité au cas où aucun mode ne correspondrait
-        return {"accuracy": 0, "f1": 0, "precision": 0, "recall": 0}
+        if best_metrics_testing is None:
+            # Sécurité au cas où aucun mode ne correspondrait
+            return {"accuracy": 0, "f1": 0, "precision": 0, "recall": 0}
 
 
-    # Plot training/validation curves
+        # Plot training/validation curves
 
-    epochs = range(1, len(total_finetune_loss) + 1)
-    plt.figure(figsize=(8,6))
-    plt.plot(epochs, total_finetune_loss, label='Training Loss')
-    plt.plot(epochs, total_validation_loss, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training vs Validation Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(
-        os.path.join(loss_save_dir, "train_validation_loss.png"),
-        dpi=300,
-        bbox_inches='tight'
-    )
+        epochs = range(1, len(total_finetune_loss) + 1)
+        plt.figure(figsize=(8,6))
+        plt.plot(epochs, total_finetune_loss, label='Training Loss')
+        plt.plot(epochs, total_validation_loss, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training vs Validation Loss')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(
+            os.path.join(loss_save_dir, "train_validation_loss.png"),
+            dpi=300,
+            bbox_inches='tight'
+        )
 
-    plt.show()
+        plt.show()
 
-    return best_metrics_testing, best_metrics_finetune
+        return best_metrics_testing, best_metrics_finetune

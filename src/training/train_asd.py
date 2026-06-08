@@ -7,7 +7,13 @@ Original file is located at
     https://colab.research.google.com/drive/1lISAuBU3vYn8MkdpJ8CpHerARt2zcg7x
 """
 
-
+import torch
+import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, average_precision_score
+from sklearn.metrics import precision_score, recall_score, f1_score
+import torch.nn.functional as F
+from torch import nn
+from src.training.loss_asd import SupConLoss
 
 def model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, train_loader, device):
     total_loss = []
@@ -217,7 +223,7 @@ def model_finetune(model, model_optimizer, val_dl, device, training_mode, classi
     ave_auc = torch.tensor(total_auc).mean()
     ave_prc = torch.tensor(total_prc).mean()
 
-    print(' Finetune: loss = %.4f| Acc=%.4f | Precision = %.4f | Recall = %.4f | F1 = %.4f| AUROC=%.4f | AUPRC = %.4f'
+    print(' Finetune: loss = %.4f| Acc=%.4f | Precision = %.4f | Recall = %.4f | F1 = %.4f| AUROC=%.4f | AUPRC = %.4f')
 #           % (ave_loss, ave_acc*100, precision * 100, recall * 100, F1 * 100, ave_auc * 100, ave_prc *100))
 
     # *** nouvelle version du retour ***

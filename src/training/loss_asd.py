@@ -8,9 +8,6 @@ Original file is located at
 """
 
 import torch
-import torch.nn.functional as F
-import numpy as np
-
 
 class SupConLoss(torch.nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.

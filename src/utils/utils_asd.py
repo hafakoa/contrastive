@@ -8,6 +8,7 @@ Original file is located at
 """
 
 ########################################################################
+"""
 def model_validate(model, valid_dl, device, classifier):
 
     model.eval()
@@ -64,11 +65,13 @@ def model_validate(model, valid_dl, device, classifier):
     print(f' Validation: loss={avg_loss:.4f} | Acc={avg_acc*100:.2f}')
 
     return avg_loss, avg_acc
-
+"""
 ##########################################################################
 
 
 import pandas as pd
+import os
+import src.utils.hyperparameters_asd as cfg
 
 def get_file_type(filename):
     """Détermine si le fichier commence par un chiffre ou une lettre."""
@@ -137,7 +140,7 @@ def analyze_accuracy_by_type(csv_path, id_column='filename'):
     )
     stats['Accuracy (%)'] = (stats['Corrects'] / stats['Total'] * 100).round(2)
 
-    print(f"\n📊 Rapport d'analyse pour : {os.path.basename(csv_path)}")
+    print(f"\n Rapport d'analyse pour : {os.path.basename(csv_path)}")
     print("-" * 50)
     print(stats)
     return stats
@@ -287,7 +290,7 @@ def visualization_tsne(emb, lab, filenm, filename_map, ep, acc, precision, recal
 
     plt.title(
         #f't-SNE embeddings lr:{lr} Acc:{acc.4f} Precision:{precision.4f} Recall:{recall.4f} F1:{f1.4f} (Epoch {ep})'
-        f't-SNE embeddings lr:{lr} Acc:{acc:.4f} Precision:{precision:.4f} Recall:{recall:.4f} F1:{f1:.4f} (Epoch {ep})'
+        f't-SNE embeddings lr:{cfg.lr} Acc:{acc:.4f} Precision:{precision:.4f} Recall:{recall:.4f} F1:{f1:.4f} (Epoch {ep})'
     )
     plt.xlabel("t-SNE-1")
     plt.ylabel("t-SNE-2")

@@ -11,12 +11,13 @@ from torch import nn
 import torch
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import math
+import src.utils.hyperparameters_asd as cfg
 
 # Fix for d_model
-d_model = d_model[0] if isinstance(d_model, tuple) else d_model
+d_model = cfg.d_model[0] if isinstance(cfg.d_model, tuple) else cfg.d_model
 
 # Fix for dim_feedforward
-dim_feedforward = dim_feedforward[0] if isinstance(dim_feedforward, tuple) else dim_feedforward
+dim_feedforward = cfg.dim_feedforward[0] if isinstance(cfg.dim_feedforward, tuple) else cfg.dim_feedforward
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, max_len: int = 5000):
@@ -37,20 +38,20 @@ class TFC(nn.Module):
     def __init__(self):
         super(TFC, self).__init__()
         # Project raw input to d_model if needed (e.g., from seq_len to d_model)
-        self.projection = nn.Linear(patch_size, d_model)
+        self.projection = nn.Linear(cfg.patch_size, d_model)
 
         # Add positional encoders
-        self.pos_encoder_t = PositionalEncoding(d_model, max_len=TSlength_aligned)
-        self.pos_encoder_f = PositionalEncoding(d_model, max_len=TSlength_aligned)
+        self.pos_encoder_t = PositionalEncoding(d_model, max_len=cfg.TSlength_aligned)
+        self.pos_encoder_f = PositionalEncoding(d_model, max_len=cfg.TSlength_aligned)
         # Transformer encoder
         encoder_layers_t = TransformerEncoderLayer(
             d_model=d_model,
-            nhead=nhead,                           # Must divide d_model (e.g., 8 for d_model=768)
+            nhead=cfg.nhead,                           # Must divide d_model (e.g., 8 for d_model=768)
             dim_feedforward=int(dim_feedforward),  # 4*d_model
-            dropout=dropout,
+            dropout=cfg.dropout,
             batch_first=True,
         )
-        self.transformer_encoder_t = TransformerEncoder(encoder_layers_t, num_layers=num_layers)
+        self.transformer_encoder_t = TransformerEncoder(encoder_layers_t, num_layers=cfg.num_layers)
 
         self.projector_t = nn.Sequential(
             nn.Linear(d_model, 256),
@@ -61,12 +62,12 @@ class TFC(nn.Module):
 
         encoder_layers_f = TransformerEncoderLayer(
             d_model=d_model,
-            nhead=nhead,
+            nhead=cfg.nhead,
             dim_feedforward=int(dim_feedforward),  # 4*d_model
-            dropout=dropout,
+            dropout=cfg.dropout,
             batch_first=True,
         )
-        self.transformer_encoder_f = TransformerEncoder(encoder_layers_f, num_layers=num_layers)
+        self.transformer_encoder_f = TransformerEncoder(encoder_layers_f, num_layers=cfg.num_layers)
 
         self.projector_f = nn.Sequential(
             nn.Linear(d_model, 256),
@@ -117,7 +118,7 @@ class target_classifier(nn.Module):
         #self.dropout = nn.Dropout(0.3)
         self.logits2 = nn.Linear(128, 64)
 
-        self.logits3 = nn.Linear(64, num_classes_target)
+        self.logits3 = nn.Linear(64, cfg.num_classes_target)
 
     def forward(self, emb):
 
