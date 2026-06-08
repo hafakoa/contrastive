@@ -85,24 +85,43 @@ configs/ "Hyperparameters used: weight decay, learning rate, dropout, d_model, d
 
 
 
-## ⚙️ Installation
+## ⚙️ Installation and Setup (Windows 11 + VS Code)
 
-
-
-### Using pip
-
-
-
+### 1. Clone the repository  
 ```bash
-
-pip install -r requirements.txt
-
-Using conda
-
-conda env create -f environment.yml
-
-conda activate tfc-asd
+cd <git local repository>  
+git clone <repository_url>  
+cd <repository_folder>
 ```
+### 2. Create a Python virtual environment  
+```bash
+python -m venv asd_env  
+```
+### 3. Allow PowerShell script execution (current session only)  
+If PowerShell prevents the activation script from running, execute:  
+```bash
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process  
+```
+### 4. Activate the virtual environment  
+```bash
+.\asd_env\Scripts\Activate.ps1
+
+(asd_env) PS C:\path\to\project>  
+```
+### 5. Install project dependencies using a requirements file  
+```bash
+pip install --upgrade pip  
+pip install -r requirements.txt  
+python --version  
+pip list  
+```
+### 6. Launch the training script  
+```bash
+python -m src.training.main_kfold_asd  
+```
+
+
+
 
 ## 📊 Dataset
 
