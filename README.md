@@ -125,7 +125,7 @@ UClass
 The cohort breakdown is as follows:
 TalkBank: 92 participants, including 46 with ASD and 46 without ASD (typically developing participants – TD – and participants with ADHD). The recordings consist primarily of articulated speech.
 ReCANVo: 8 participants with ASD who primarily produce non-verbal vocalizations.
-UClass: 8 participants with non-ASD (12 women and 12 men) who stutter. The recordings consist of articulated speech.
+UClass: 8 participants with non-ASD (4 women and 4 men) who stutter. The recordings consist of articulated speech.
 
 Data instructions are found at data/README.md  
 
