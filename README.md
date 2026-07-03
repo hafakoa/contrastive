@@ -123,17 +123,17 @@ TalkBank (Dutch)
 UClass
 
 The cohort breakdown is as follows:
-TalkBank: 121 participants, including 46 with ASD and 75 without ASD (38 typically developing participants – TD – and 37 participants with ADHD). The recordings consist primarily of articulated speech.
+TalkBank: 92 participants, including 46 with ASD and 46 without ASD (typically developing participants – TD – and participants with ADHD). The recordings consist primarily of articulated speech.
 ReCANVo: 8 participants with ASD who primarily produce non-verbal vocalizations.
-UClass: 24 participants with non-ASD (12 women and 12 men) who stutter. The recordings consist of articulated speech.
+UClass: 8 participants with non-ASD (12 women and 12 men) who stutter. The recordings consist of articulated speech.
 
 Data instructions are found at data/README.md  
 
 
 ## 📈 Results
-The entire corpus comprises **153 participants**, distributed as follows:  
+The entire corpus comprises **108 participants**, distributed as follows:  
 54 participants with autism spectrum disorder (ASD);  
-99 non-autistic participants (Non-ASD).  
+54 non-autistic participants (Non-ASD).  
 - Inference with unseen data
 <p align="center">
     <img src="images/inference_asd.png" width="750" align="center">
