@@ -178,6 +178,153 @@ def visualization_tsne(emb, lab, filenm, filename_map, ep, acc, precision, recal
 
     N = emb.shape[0]
 
+    # --- reconstruire les noms de fichiers ---
+    filenames = []
+    for i in range(N):
+        key = tuple(filenm_np[i].tolist())
+        fname = filename_map.get(key, "")
+        filenames.append(fname)
+    filenames = np.array(filenames)
+
+    # --- masques sur les classes de base ---
+    lab = np.array(lab)
+    mask_asd = (lab == 1)      # ASD
+    mask_nonasd = (lab == 0)   # NonASD
+
+    # --- Initialisation des sous-masques spécifiques ---
+    mask_dutch_asd = np.zeros(N, dtype=bool)
+    mask_recanvo_asd = np.zeros(N, dtype=bool)
+    
+    mask_dutch_nonasd = np.zeros(N, dtype=bool) # Dutch_TD et Dutch_ADHD
+    mask_uclass_nonasd = np.zeros(N, dtype=bool) # UClass_TD
+
+    # --- Analyse des préfixes selon les règles ---
+    for i, fname in enumerate(filenames):
+        if mask_asd[i]:
+            if fname.startswith("asd"):
+                mask_dutch_asd[i] = True
+            elif fname.startswith("P"):
+                mask_recanvo_asd[i] = True
+        elif mask_nonasd[i]:
+            if fname.startswith("td") or fname.startswith("adhd"):
+                mask_dutch_nonasd[i] = True
+            elif fname.startswith("F") or fname.startswith("M"):
+                mask_uclass_nonasd[i] = True
+
+    # --- Affichage des logs pour contrôle ---
+    print("Total N :", N)
+    print("ASD total (lab==1) :", mask_asd.sum())
+    print("  -> Dutch_ASD     :", mask_dutch_asd.sum())
+    print("  -> Recanvo_ASD   :", mask_recanvo_asd.sum())
+    print("NONASD total (lab==0) :", mask_nonasd.sum())
+    print("  -> Dutch (TD/ADHD):", mask_dutch_nonasd.sum())
+    print("  -> UClass_TD     :", mask_uclass_nonasd.sum())
+
+    # Détection des fichiers non classés (Optionnel - Sécurité)
+    mask_unclassified = (mask_asd & ~(mask_dutch_asd | mask_recanvo_asd)) | \
+                        (mask_nonasd & ~(mask_dutch_nonasd | mask_uclass_nonasd))
+    
+    if mask_unclassified.any():
+        print(f"⚠️ Alerte : {mask_unclassified.sum()} fichiers n'ont pas matché les préfixes !")
+        idx_unclassified = np.where(mask_unclassified)[0]
+        for i in idx_unclassified[:10]:
+            print(f"Index {i} | Fichier: '{filenames[i]}' | Label: {lab[i]}")
+
+    # --- t-SNE sur tous les embeddings ---
+    
+    reducer = TSNE(
+        n_components=2,
+        perplexity=20,
+        learning_rate='auto',
+        init='pca',
+        metric='euclidean',
+        max_iter=500,  # <-- Remplacer n_iter par max_iter ici
+        random_state=42
+    )
+
+    embedding_2d = reducer.fit_transform(emb)
+
+    plt.figure(figsize=(10, 8))
+
+    # 1) NonASD : Dutch_TD et Dutch_ADHD -> Blue
+    if mask_dutch_nonasd.any():
+        plt.scatter(
+            embedding_2d[mask_dutch_nonasd, 0],
+            embedding_2d[mask_dutch_nonasd, 1],
+            c='blue',
+            s=12,
+            alpha=0.7,
+            label='NonASD (Dutch TD & ADHD)'
+        )
+
+    # 2) NonASD : UClass_TD -> Violet (darkviolet / blueviolet)
+    if mask_uclass_nonasd.any():
+        plt.scatter(
+            embedding_2d[mask_uclass_nonasd, 0],
+            embedding_2d[mask_uclass_nonasd, 1],
+            c='darkviolet',
+            s=12,
+            alpha=0.7,
+            label='NonASD (UClass TD)'
+        )
+
+    # 3) ASD : Dutch_ASD -> Orange
+    if mask_dutch_asd.any():
+        plt.scatter(
+            embedding_2d[mask_dutch_asd, 0],
+            embedding_2d[mask_dutch_asd, 1],
+            c='orange',
+            s=12,
+            alpha=0.8,
+            marker='o',
+            label='ASD (Dutch)'
+        )
+
+    # 4) ASD : Recanvo_ASD -> Rouge
+    if mask_recanvo_asd.any():
+        plt.scatter(
+            embedding_2d[mask_recanvo_asd, 0],
+            embedding_2d[mask_recanvo_asd, 1],
+            c='red',
+            s=12,
+            alpha=0.8,
+            marker='o',
+            label='ASD (Recanvo)'
+        )
+
+    # Configuration des graphiques
+    plt.title(
+        f't-SNE {train_mode} | Acc:{acc:.4f} P:{precision:.4f} R:{recall:.4f} F1:{f1:.4f} (Epoch {ep})',
+        fontsize=12
+    )
+    plt.xlabel("t-SNE-1")
+    plt.ylabel("t-SNE-2")
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend(loc='best', frameon=True)
+    plt.tight_layout()
+
+    # Sauvegarde de la figure
+    save_path = (
+        f'./data/Save_dataset/TSNE/'
+        f'fig_supconv1_{train_mode}_epoch_{ep}_detailed_subsets.png'
+    )
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+"""
+def visualization_tsne_old(emb, lab, filenm, filename_map, ep, acc, precision, recall, f1, train_mode):
+
+    # --- conversions numpy ---
+    if isinstance(emb, torch.Tensor):
+        emb = emb.detach().cpu().numpy()
+    if isinstance(lab, torch.Tensor):
+        lab = lab.detach().cpu().numpy()
+    if isinstance(filenm, torch.Tensor):
+        filenm_np = filenm.detach().cpu().numpy()
+    else:
+        filenm_np = filenm
+
+    N = emb.shape[0]
+
 
     # --- reconstruire les noms de fichiers ---
     filenames = []
@@ -303,7 +450,7 @@ def visualization_tsne(emb, lab, filenm, filename_map, ep, acc, precision, recal
         f'fig_supconv1_{train_mode}_epoch_{ep}_ASDdigits_ASDletters_NonASD.png'
     )
     plt.close()
-
+"""
 ########################################################################
 from sklearn.manifold import TSNE
 import numpy as np

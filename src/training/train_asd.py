@@ -14,6 +14,9 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 import torch.nn.functional as F
 from torch import nn
 from src.training.loss_asd import SupConLoss
+#from src.evaluation.test_asd import model_test_individual_level, model_validate
+#from src.utils.utils_asd import MetricTracker, analyze_accuracy_by_type, print_metrics
+import src.datasets.dataloader_asd as dld
 
 def model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, train_loader, device):
     total_loss = []
@@ -22,7 +25,8 @@ def model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, 
     global loss, loss_t, loss_f, l_TF, loss_c, data_test, data_f_test
     #total_steps = num_epoch_finetune * len(train_loader)
     #current_step = 0
-
+    total_domain_acc = 0.0
+    num_batches = 0
     #model_optimizer.zero_grad()
 
     for batch_idx, (data, labels, aug1, data_f, aug1_f, _, domains) in enumerate(train_loader):
@@ -64,24 +68,41 @@ def model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, 
           features_supcon = torch.cat([z_t.unsqueeze(1), z_f.unsqueeze(1)], dim=1)
           l_supcon = criterion_supcon(features_supcon, labels)
 
-          lam = 0.2   #0.1  0.2 to test 1.0
-          lambda_adv = 0.01  #0.1
+          lam = 0.5   #0.1  0.2 to test 1.0
+          lambda_adv = 0.1  #0.1 0.4
           fea_concat = torch.cat((z_t,z_f), dim=1)
-          domain_preds = domain_classifier(fea_concat)
+
+          domain_preds = domain_classifier(fea_concat, alpha=1.0)
+          pred_domains = torch.argmax(domain_preds, dim=1)
+          batch_domain_acc = (pred_domains == domains).float().mean().item()
+
+          total_domain_acc += batch_domain_acc
+          num_batches += 1
           loss_domain = domain_criterion(domain_preds, domains)
           loss = (l_supcon + lam*(l_t_supcon+l_f_supcon) + lambda_adv*loss_domain)
           total_loss.append(loss.item())
           loss.backward()
-          torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)     #new
+          #encoder_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=float("inf"))
+          #domain_norm = torch.nn.utils.clip_grad_norm_(domain_classifier.parameters(), max_norm=float("inf"))
+
+          #print(f"Encoder: {encoder_norm:.2f}, "
+          #      f"Domain: {domain_norm:.2f}")
+          #torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)     #new
+          #torch.nn.utils.clip_grad_norm_(domain_classifier.parameters(), 5.0)
           model_optimizer.step()
           domain_optimizer.step()
           #current_step += 1
 
     #print('Pretraining: overall loss:{}'.format(loss))
-
+    avg_domain_acc = total_domain_acc / num_batches
     ave_loss = torch.tensor(total_loss).mean()
+    print(
+        f"Pretrain Loss: {ave_loss:.4f} | "
+        f"Domain Loss: {loss_domain.item():.4f} | "
+        f"Domain Acc: {avg_domain_acc:.4f}"
+    )
 
-    return ave_loss
+    return ave_loss, avg_domain_acc
 
 # Commented out IPython magic to ensure Python compatibility.
 def model_finetune(model, model_optimizer, val_dl, device, training_mode, classifier, classifier_optimizer, domain_classifier, domain_optimizer):
@@ -94,7 +115,7 @@ def model_finetune(model, model_optimizer, val_dl, device, training_mode, classi
     total_acc = []
     total_auc = []
     total_prc = []
-
+    total_acc_testing = []
     criterion = nn.CrossEntropyLoss()
     domain_criterion = nn.CrossEntropyLoss()
     outs = np.array([])
@@ -148,15 +169,15 @@ def model_finetune(model, model_optimizer, val_dl, device, training_mode, classi
         fea_concat_flat = fea_concat.reshape(fea_concat.shape[0], -1)
         loss_p = criterion(predictions, labels)
         lam = 0.0   #0.1  0.2 to test 1.0
-        #alpha = 1.0   #0.01
-        lambda_adv = 0.05  #0.1   0.05   0.0
-        #loss = alpha * l_supcon + loss_p + lam*(l_t_supcon + l_f_supcon)
+        beta = 1.0   #0.01
+        lambda_adv = 0.1  #0.1   0.4  0.05   0.0
+        #loss = beta * l_supcon + loss_p + lam*(l_t_supcon + l_f_supcon)
         #lam = 0.1
         #loss = loss_p + l_TF + lam*(loss_t + loss_f)
         #domain_preds = domain_classifier(fea_concat, alpha=current_alpha)
-        domain_preds = domain_classifier(fea_concat)
+        domain_preds = domain_classifier(fea_concat, alpha=1.0)
         loss_domain = domain_criterion(domain_preds, domains)
-        loss = (l_supcon + loss_p + lam*(l_t_supcon + l_f_supcon) + lambda_adv*loss_domain)
+        loss = (beta*l_supcon + loss_p + lam*(l_t_supcon + l_f_supcon) + lambda_adv*loss_domain)
 
         acc_bs = labels.eq(predictions.detach().argmax(dim=1)).float().mean()
         onehot_label = F.one_hot(labels)
@@ -192,6 +213,16 @@ def model_finetune(model, model_optimizer, val_dl, device, training_mode, classi
         total_prc.append(prc_bs)
         total_loss.append(loss.item())
         loss.backward()
+        #encoder_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=float("inf"))
+        #classifier_norm = torch.nn.utils.clip_grad_norm_(classifier.parameters(), max_norm=float("inf"))
+        #domain_norm = torch.nn.utils.clip_grad_norm_(domain_classifier.parameters(), max_norm=float("inf"))
+
+        #print(f"Encoder: {encoder_norm:.2f}, "
+        #      f"Classifier: {classifier_norm:.2f}, "
+        #      f"Domain: {domain_norm:.2f}")
+        #torch.nn.utils.clip_grad_norm_(model.parameters(), 9.0)            #new
+        #torch.nn.utils.clip_grad_norm_(classifier.parameters(), 9.0)  #new
+        #torch.nn.utils.clip_grad_norm_(domain_classifier.parameters(), 9.0)  #new
         model_optimizer.step()
         classifier_optimizer.step()
         domain_optimizer.step()
@@ -223,8 +254,8 @@ def model_finetune(model, model_optimizer, val_dl, device, training_mode, classi
     ave_auc = torch.tensor(total_auc).mean()
     ave_prc = torch.tensor(total_prc).mean()
 
-    print(' Finetune: loss = %.4f| Acc=%.4f | Precision = %.4f | Recall = %.4f | F1 = %.4f| AUROC=%.4f | AUPRC = %.4f')
-#           % (ave_loss, ave_acc*100, precision * 100, recall * 100, F1 * 100, ave_auc * 100, ave_prc *100))
+    print(' Finetune: loss = %.4f| Acc=%.4f | Precision = %.4f | Recall = %.4f | F1 = %.4f| AUROC=%.4f | AUPRC = %.4f'
+           % (ave_loss, ave_acc*100, precision * 100, recall * 100, F1 * 100, ave_auc * 100, ave_prc *100))
 
     # *** nouvelle version du retour ***
     return ave_loss, feas, trgs, ave_acc, precision, F1, recall, filenm_cat

@@ -212,8 +212,8 @@ def model_test_individual_level(model, testdl, device, classifier, filename_map)
 
     #print("\nIndividual PERFORMANCE Metrics:")
     print(f"Individuals evaluated: {len(individual_acc)} ({dist_str})")
-    print('MLP Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | AUPRC=%.4f')
-#           % (accuracy*100, precision * 100, recall * 100, f1 * 100, auroc*100, auprc*100))
+    print('MLP Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | AUPRC=%.4f'
+           % (accuracy*100, precision * 100, recall * 100, f1 * 100, auroc*100, auprc*100))
 
     metrics = {
         'accuracy': accuracy,

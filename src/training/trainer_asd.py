@@ -13,7 +13,9 @@ import csv
 import numpy as np
 import seaborn as sns
 import torch
+import torch.nn.functional as F
 import src.utils.hyperparameters_asd as cfg
+import src.utils.utils_asd as utl
 import matplotlib.pyplot as plt
 #sys.path.append("..")
 from sklearn.metrics import classification_report, confusion_matrix
@@ -27,8 +29,14 @@ from src.utils.utils_asd import MetricTracker, analyze_accuracy_by_type, print_m
 #from model import *
 #tokenizer = AutoTokenizer.from_pretrained("/content/drive/MyDrive/TFC/Save_dataset/tokenizer")
 
+def ema(data, alpha=0.2):
+    smoothed = [data[0]]
+    for point in data[1:]:
+        smoothed.append(alpha*point + (1-alpha)*smoothed[-1])
+    return smoothed
+
 def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_classifier, domain_optimizer, train_dl, test_dl, device,
-            experiment_log_dir, training_mode, filename_map):
+            experiment_log_dir, training_mode, filename_map, num_fold):
     #criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optimizer, 'min')
     best_metrics_testing = None
@@ -40,8 +48,9 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         print('\nPretraining on source dataset in progress\n')
         total_train_loss = []
         for epoch in range(1, cfg.num_epoch_pretrain + 1):
-            train_loss = model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, train_dl, device)
+            train_loss, avg_domain_acc = model_pretrain(model, model_optimizer, domain_classifier, domain_optimizer, train_dl, device)
             print(f'Pre-training Epoch : {epoch}', f'Train Loss : {train_loss:.4f}')
+            print(f'Domain Acc: {avg_domain_acc:.4f}')
             # save best pretrain model""
             if len(total_train_loss) == 0 or train_loss < min(total_train_loss):
                 print('update pretrain model\n')
@@ -64,8 +73,8 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         tracker_indiv_level = MetricTracker() # Initialize tracker
         tracker_file_level = MetricTracker()
         print('\n--->PREDICTION ON TEST DATASET')
-        #model.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'ckp_last.pt'), weights_only=True))
-        #classifier.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'classifier.pt'), weights_only=True))
+        model.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'ckp_last_prediction.pt'), weights_only=True))
+        classifier.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'classifier_prediction.pt'), weights_only=True))
 
 
         """Testing in Individual-Level"""
@@ -172,7 +181,7 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
         for epoch in range(1, cfg.num_epoch_finetune + 1):
             print(f'\nEpoch : {epoch}')
             finetune_loss, emb_finetune, label_finetune, Acc, Precision, F1, Recall, filenm = model_finetune(model, model_optimizer, train_dl,
-                                  device, training_mode, classifier=classifier, classifier_optimizer=classifier_optimizer, domain_classifier=domain_classifier, domain_optimizer=domain_optimizer)
+                                 device, training_mode, classifier=classifier, classifier_optimizer=classifier_optimizer, domain_classifier=domain_classifier, domain_optimizer=domain_optimizer)
 
             scheduler.step(finetune_loss)
             total_finetune_loss.append(finetune_loss)
@@ -197,9 +206,9 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
 
 
             # load best finetune model and evaluate on the test set
-            print('\n--->PREDICTION ON TEST DATASET')
+            #print('\n--->PREDICTION ON TEST DATASET')
 
-            """Testing in Individual-Level for each finetune model"""
+            #Testing in Individual-Level for each finetune model
             print("\n===Testing in Individual-Level===")
             #print("\nIndividual Results:")
             individual_results, metrics_indiv_level, class_dist_indiv = model_test_individual_level(model, test_dl, device, classifier, filename_map)
@@ -210,11 +219,11 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
 
             total_validation_loss.append(validation_loss)   #/////////////////////////////////////
 
-             # Update tracker (using accuracy score as key metric)
+            #Update tracker (using accuracy score as key metric)
             tracker_indiv_level.update(metrics_indiv_level, epoch, key='accuracy')
             metrics_ep = print_metrics(metrics_indiv_level, epoch)
             Acc_testing = metrics_ep['accuracy']
-            """Save the model and classifier achieved"""
+            #Save the model and classifier achieved
             if len(total_acc_testing) == 0 or Acc_testing >= max(total_acc_testing):
               os.makedirs(os.path.join(experiment_log_dir, "saved_models_supCon_prediction"), exist_ok=True)
               #chkpoint = f"{epoch}_ckp_last.pt"
@@ -230,7 +239,22 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
             #visualization(emb_test, label_test, epoch, "testing")
 
 
-
+        if num_fold == 1:
+            emb_finetune = torch.from_numpy(emb_finetune)
+            emb_finetune = F.normalize(emb_finetune,p=2,dim=1)
+            utl.visualization_tsne(
+                emb=emb_finetune,
+                lab=label_finetune,
+                filenm=filenm,              # tensor [N, max_len]
+                filename_map=filename_map,  # dict {tuple(tokens): "200122_1453_..." }
+                ep=epoch,
+                acc=Acc,
+                precision=Precision,
+                recall=Recall,
+                f1=F1,
+                train_mode="finetune"
+            )
+        
         loss_save_dir = os.path.join(experiment_log_dir, "loss_curves")
 
         print("\n############# BEST PERFORMANCE FOR TF-C ASD MODEL USING SUPERVISED CONTRASTIVE LOSS ####################\n")
@@ -252,29 +276,27 @@ def Trainer(model, model_optimizer, classifier, classifier_optimizer, domain_cla
 
         print("\n####################### Experimentation is Done! #########################")
 
-
         if best_metrics_testing is None:
             # Sécurité au cas où aucun mode ne correspondrait
             return {"accuracy": 0, "f1": 0, "precision": 0, "recall": 0}
 
-
         # Plot training/validation curves
-
+        train_smooth = ema(total_finetune_loss, alpha=0.2)
+        val_smooth = ema(total_validation_loss, alpha=0.2)
         epochs = range(1, len(total_finetune_loss) + 1)
         plt.figure(figsize=(8,6))
-        plt.plot(epochs, total_finetune_loss, label='Training Loss')
-        plt.plot(epochs, total_validation_loss, label='Validation Loss')
+        plt.plot(epochs, train_smooth, label='Training Loss', linewidth=2)
+        plt.plot(epochs, val_smooth, label='Validation Loss', linewidth=2)
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.title('Training vs Validation Loss')
+        plt.title(f'Training vs Validation Loss - Fold {num_fold}')
         plt.legend()
-        plt.grid(True)
+        plt.grid(True, alpha=0.3)
+        fig_name = f"train_validation_loss_fold_{num_fold}.png"
         plt.savefig(
-            os.path.join(loss_save_dir, "train_validation_loss.png"),
-            dpi=300,
+            os.path.join(loss_save_dir, fig_name),
+            dpi=600,
             bbox_inches='tight'
         )
-
-        plt.show()
-
+        plt.close()
         return best_metrics_testing, best_metrics_finetune

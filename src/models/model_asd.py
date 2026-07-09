@@ -106,6 +106,57 @@ class TFC(nn.Module):
 
 """Downstream classifier only used in finetuning"""
 import torch.nn.functional as F
+
+class target_classifier(nn.Module):
+
+    def __init__(self):
+
+        super(target_classifier, self).__init__()
+
+        self.fc1 = nn.Linear(256, 128)
+
+        self.fc2 = nn.Linear(128, 64)
+
+        self.fc3 = nn.Linear(64, cfg.num_classes_target)
+
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, emb):
+
+        x = emb.reshape(emb.shape[0], -1)
+
+        x = self.fc1(x)
+
+        x = F.gelu(x)
+
+        x = self.dropout(x)
+
+        x = self.fc2(x)
+
+        x = F.gelu(x)
+
+        x = self.dropout(x)
+
+        x = self.fc3(x)
+
+        return x
+
+"""
+class target_classifier(nn.Module):
+    def __init__(self):
+        super(target_classifier, self).__init__()
+        self.logits = nn.Linear(2*128, 64)
+        self.logits_simple = nn.Linear(64, cfg.num_classes_target)
+
+    def forward(self, emb):
+        emb_flat = emb.reshape(emb.shape[0], -1)
+        emb = torch.sigmoid(self.logits(emb_flat))
+        pred = self.logits_simple(emb)
+        return pred
+
+
+
+
 class target_classifier(nn.Module):
 
     def __init__(self):
@@ -115,7 +166,7 @@ class target_classifier(nn.Module):
         self.logits = nn.Linear(2 * 128, 128)
 
         self.dropout = nn.Dropout(0.2)
-        #self.dropout = nn.Dropout(0.3)
+        #self.dropout = nn.Dropout(0.2)
         self.logits2 = nn.Linear(128, 64)
 
         self.logits3 = nn.Linear(64, cfg.num_classes_target)
@@ -140,9 +191,40 @@ class target_classifier(nn.Module):
         pred = self.logits3(x)
 
         return pred
+"""
 
-from torch.autograd import Function
+
+
+
 import torch.nn as nn
+from torch.autograd import Function
+"""
+class DomainClassifier(nn.Module):
+    def __init__(self, num_domains=4):
+        super().__init__()
+
+        self.grl = GradientReversalLayer(alpha=1.0)
+
+        self.net = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.LeakyReLU(0.1),
+
+            nn.Dropout(0.3),
+
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.LeakyReLU(0.1),
+
+            nn.Dropout(0.3),
+
+            nn.Linear(64, num_domains)
+        )
+
+    def forward(self, x, alpha=None):
+        x = self.grl(x, alpha)
+        return self.net(x)
+
 
 
 class DomainClassifier(nn.Module):
@@ -162,6 +244,8 @@ class DomainClassifier(nn.Module):
         x = self.grl(x)
         return self.net(x)
 
+
+from torch.autograd import Function
 class GradientReverseFunction(Function):
     @staticmethod
     def forward(ctx, x, alpha):
@@ -180,3 +264,34 @@ class GradientReversalLayer(nn.Module):
         if alpha is not None:
             self.alpha = alpha
         return GradientReverseFunction.apply(x, self.alpha)
+"""
+class GradientReverseFunction(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return -ctx.alpha * grad_output, None
+
+class GradientReversalLayer(nn.Module):
+    def forward(self, x, alpha=1.0):
+        return GradientReverseFunction.apply(x, alpha)
+
+class DomainClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.grl = GradientReversalLayer()
+        self.net = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            #nn.GroupNorm(8, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 3)
+        )
+
+    def forward(self, x, alpha=1.0):
+        x = self.grl(x, alpha)
+        return self.net(x)

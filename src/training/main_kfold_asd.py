@@ -35,7 +35,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-set_seed(42)
+
 
 def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch_size):
 
@@ -121,7 +121,7 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             all_groups_t,
             all_domains_t
         )
-
+        
         test_balanced = {
             'samples': all_chunks_t_balanced,
             'labels': all_labels_t_balanced,
@@ -129,14 +129,20 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             'groups': all_groups_t_balanced,
             'domains': all_domains_t_balanced
         }
+        """
         # Without balancing in testing
-        #test_no_balanced = {'samples': all_chunks_t, 'labels': all_labels_t, 'filenames': all_filenames_t, 'groups': all_groups_t}
-        
+        test_no_balanced = {
+            'samples': all_chunks_t,
+            'labels': all_labels_t,
+            'filenames': all_filenames_t,
+            'groups': all_groups_t,
+            'domains': all_domains_t}
+        """
         print(f"Label distribution equilibree Train: 0={torch.sum(all_labels_balanced == 0).item()}, 1={torch.sum(all_labels_balanced == 1).item()}")
         print(f"Label distribution equilibree Test: 0={torch.sum(all_labels_t_balanced == 0).item()}, 1={torch.sum(all_labels_t_balanced == 1).item()}\n")
 
         # Load dataloaders
-        #train_dl, test_dl = data_generator(train_balanced, test_no_balanced)
+        #train_dl, test_dl = dld.data_generator(train_balanced, test_no_balanced)
         train_dl, test_dl = dld.data_generator(train_balanced, test_balanced)
 
         device = torch.device(
@@ -157,15 +163,14 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             TFC_model.parameters(),
             lr=cfg.lr,
             betas=(0.9, 0.99),
-            weight_decay=1e-4       #1e-4 to test 5e-4  1e-3
+            weight_decay=1e-5       #1e-3 to test 5e-4  1e-3
         )
         classifier_optimizer = torch.optim.Adam(
             classifier.parameters(),
             lr=cfg.lr_classifier,
             betas=(0.9, 0.99),
-            weight_decay=1e-4
+            weight_decay=1e-3       #1e-3
         )
-
         training_mode = "pre_train"
         Trainer(
             TFC_model,
@@ -179,14 +184,14 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             device,
             experiment_log_dir,
             training_mode,
-            filename_map
+            filename_map,
+            fold
         )
-
         training_mode = "fine_tune_validation_test"
         chkpoint = torch.load(
             os.path.join(experiment_log_dir, 'saved_models_supCon_pretrain', 'ckp_last.pt'),
             weights_only=True,
-            map_location=device
+             map_location=device
         )
         pretrained_dict = chkpoint["model_state_dict"]
         TFC_model.load_state_dict(pretrained_dict)
@@ -202,16 +207,12 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             device,
             experiment_log_dir,
             training_mode,
-            filename_map
+            filename_map,
+            fold
         )
 
         fold_results_testing.append(metrics_testing)
         fold_results_finetune.append(metrics_finetune)
-        """"
-        if 'y_true' in metrics_testing and 'y_pred' in metrics_testing:
-            all_fold_y_true.extend(metrics_testing['y_true'])
-            all_fold_y_pred.extend(metrics_testing['y_pred'])"""
-
         training_mode = "prediction"
         classifier.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'classifier_prediction.pt'), weights_only=True))
         TFC_model.load_state_dict(torch.load(os.path.join(experiment_log_dir, "saved_models_supCon_prediction", f'ckp_last_prediction.pt'), weights_only=True, map_location=device))
@@ -227,7 +228,8 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
             device,
             experiment_log_dir,
             training_mode,
-            filename_map
+            filename_map,
+            fold
         )
         all_fold_y_true.extend(y_true_fold)
         all_fold_y_pred.extend(y_pred_fold)
@@ -269,10 +271,15 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
     # Affichage du BoxPlot multi-métriques
     plt.figure(figsize=(10, 6))
     plt.boxplot([accs_testing, precs_testing, recs_testing, f1s_testing], labels=['Accuracy', 'Precision', 'Recall', 'F1'])
-    plt.title("Distribution des performances en prédiction sur 5-Folds (Datasets: Talk-bank, ReCANVo, UClass)")
+    plt.title("Performance Distribution across 5-Folds (Datasets: Talk-bank, ReCANVo, UClass)")
     plt.ylabel("Score")
     plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.show()
+    #plt.show()
+    output_dir_plt = './data/Save_dataset/BOXPLOT/'
+    os.makedirs(output_dir_plt, exist_ok=True)
+    save_path_bxp = os.path.join(output_dir_plt, f'fig_boxplot_5folds.png')
+    plt.savefig(save_path_bxp, dpi=300, bbox_inches='tight')
+    plt.close()
 
     # ======================================================
     # Global Confusion Matrix Across All Folds
@@ -302,13 +309,19 @@ def run_kfold(file_paths, labels, groups_kfold, domains, k, batch_size=cfg.batch
     plt.title("Global Confusion Matrix Across 5-Fold CV")
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+    output_dir_mtx = './data/Save_dataset/CONFUSION_MATRIX/'
+    os.makedirs(output_dir_mtx, exist_ok=True)
+    save_path_mtx = os.path.join(output_dir_mtx, f'fig_Confusion_Matrix_5folds.png')
+    plt.savefig(save_path_mtx, dpi=300, bbox_inches='tight')
+    plt.close()
 
     return fold_results_testing, fold_results_finetune
 
 
 def main():
     data_dir = "./data"
+    set_seed(42)
     file_paths, labels, groups, domains, original_labels = build_dataset(data_dir)
 
     asd_individuals = set()
@@ -349,6 +362,6 @@ def main():
     print("\nBinary sample distribution:")
     print("ASD/ASD_RECANVO:", sum(labels))
     print("TD/ADHD/UCLASS:", len(labels) - sum(labels))
-    run_kfold(file_paths, labels, groups, domains, k=2)   #k=5
+    run_kfold(file_paths, labels, groups, domains, k=5)   #k=5
 if __name__ == '__main__':
     main()

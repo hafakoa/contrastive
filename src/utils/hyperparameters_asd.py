@@ -11,21 +11,21 @@ Original file is located at
 sample_rate = 16000      # Standard for speech  16000
 duration = 0.5           # Duration of each chunk (second) = 50ms ? 500ms
 hop_length = 0.1         # Overlap between chunks (second) = 100ms
-batch_size = 16         # Dataloader for pre-training and fine-tuning
-target_batch_size = 16  # 128 Dataloader for validation and testing   64 128 256
+batch_size = 128         # Dataloader for pre-training and fine-tuning
+target_batch_size = 128  # 128 Dataloader for validation and testing   64 128 256
 
-d_model = 16              # for raw audio 768 and spectrom 512
+d_model = 256              # for raw audio 768 and spectrom 512
 nhead = 2                  # number of head mecanism of self-attention 8
 dim_feedforward = 4 * d_model      # 4*d_model 3072     embed_dim must be divisible by num_heads, 4 fois risque overfitting
 num_layers = 4             # 4, 6 to test 2
-dropout = 0.2              # 0.1  transformers   0.3-0.5 for dense layers  0.2 to test
+dropout = 0.2              # 0.1  transformers   0.3-0.5 for dense layers  dropout classifier 0.2 code
 TSlength_aligned = int(sample_rate * duration)  # 8000 vs 800
 patch_size = 8000
 stride = 8000
-num_epoch_pretrain = 0           # 0 25 50 100
-num_epoch_finetune = 1           # 20 25 50 100
-lr = 3e-5                # 1e-4 to test 3e-4  5e-4 3e-6
-lr_classifier = 3e-5
+num_epoch_pretrain = 10          # 0 25 50 100
+num_epoch_finetune = 40           # 20 25 50 100
+lr = 1e-4                # 1e-4 to test 3e-4  5e-4 3e-6
+lr_classifier = 1e-5
 
 num_classes_target = 2   # asd vs nonasd
 
